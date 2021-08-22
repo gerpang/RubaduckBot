@@ -151,7 +151,7 @@ def main() -> None:
         listen="0.0.0.0",
         port=int(PORT),
         url_path=TOKEN,
-        webhook_url=f"https://{}.herokuapp.com/{}".format(NAME, TOKEN),
+        webhook_url="https://{}.herokuapp.com/{}".format(NAME, TOKEN),
     )
 
     updater.idle()
