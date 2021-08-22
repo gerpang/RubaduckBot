@@ -2,5 +2,4 @@ env/
 .env
 test.py
 __pycache__/
-msg/
 references/
