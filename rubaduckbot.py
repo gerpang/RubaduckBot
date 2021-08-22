@@ -1,185 +1,146 @@
 import logging
-from time import sleep
-
-import telegram
-from telegram.ext import Updater, CommandHandler
-
 from settings import *
-
 from os.path import join, dirname
 from dotenv import load_dotenv
 
 dotenv_path = join(dirname(__file__), ".env")
 load_dotenv(dotenv_path)
 
+from telegram import Update, ParseMode
+from telegram.ext import Updater, CommandHandler, CallbackContext
 
-class DailyBot:
-    def __init__(self, token):
-        logging.basicConfig(
-            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            level=logging.INFO,
-        )
-        self.logger = logging.getLogger("LOG")
-        self.logger.info("Starting BOT.")
-        self.updater = Updater(token)
-        self.dispatcher = self.updater.dispatcher
+# Enable logging
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+)
+logger = logging.getLogger(__name__)
 
-        self.job = self.updater.job_queue
 
-        # self.job_daily = self.job.run_daily(
-        #     self.send_daily, time=DAILY_TIME, days=(0, 1, 2, 3, 4)
-        # )
-
-        start_handler = CommandHandler("start", self.send_start)
-        self.dispatcher.add_handler(start_handler)
-
-        example_handler = CommandHandler("example", self.send_example)
-        self.dispatcher.add_handler(example_handler)
-
-        daily_handler = CommandHandler("daily", self.send_daily)
-        self.dispatcher.add_handler(daily_handler)
-
-        self.dispatcher.add_error_handler(self.error)
-
-    # @staticmethod
-    # def send_type_action(chatbot, update):
-    #     """
-    #     Shows status typing when sending message
-    #     """
-    #     chatbot.send_chat_action(
-    #         chat_id=update.message.chat_id, action=telegram.ChatAction.TYPING
-    #     )
-    #     sleep(1)
-
-    def send_start(self, chatbot, update):
-        """
-        Start command to receive /start message on Telegram.
-        @BOT = information about the BOT
-        @update = the user info.
-        """
-        self.logger.info("Start command received.")
-        self.logger.info(f"{update}")
-        # self.send_type_action(chatbot, update)
-
-        chat_id = update.message["chat"]["id"]
-        if update.message["chat"]["type"] == "private":
-            name = update.message["chat"]["first_name"]
-        else:
-            name = update.message["from_user"]["first_name"]
-
-        with open(START_FILE) as start_file:
-            try:
-                start_text = start_file.read()
-                start_text = start_text.replace("{{name}}", name)
-                chatbot.send_message(
-                    chat_id=chat_id,
-                    text=start_text,
-                    parse_mode=telegram.ParseMode.MARKDOWN,
-                )
-            except Exception as error:
-                self.logger.error(error)
+def start(update: Update, context: CallbackContext) -> None:
+    """Sends explanation on how to use the bot."""
+    with open(START_FILE) as start_file:
         try:
-            chat_ids = [int(i) for i in chat_ids]
-            if chat_id not in chat_ids:
-                with open("msg/error.md") as error:
-                    error = error.read()
-                    chatbot.send_message(
-                        chat_id=chat_id,
-                        text=error,
-                        parse_mode=telegram.ParseMode.MARKDOWN,
-                    )
-        except Exception as error:
-            self.logger.error(error)
-        return 0
-
-    def send_daily(self, chatbot, job):
-        """
-        Sends text on `daily.md` daily to groups on CHAT_ID
-        @BOT = information about the BOT
-        @update = the user info.
-        """
-        chat_ids = [int(i) for i in chat_ids]
-        for chat_id in chat_ids:
-            self.logger.info(f"Sending daily to {chat_id}")
-            with open(DAILY_FILE) as daily_file:
-                daily_text = daily_file.read()
-                chatbot.send_message(
-                    chat_id=chat_id,
-                    text=daily_text,
-                    parse_mode=telegram.ParseMode.MARKDOWN,
-                )
-        return 0
-
-    def send_example(self, chatbot, update):
-        """
-        Sends example to caller
-        @chatbot = information about the BOT
-        @update = the user info.
-        """
-        # self.send_type_action(chatbot, update)
-        self.logger.info("Example command received.")
-        with open(EXAMPLE_FILE) as example_file:
-            example_text = example_file.read()
-            print(example_text)
-            chatbot.send_message(
-                chat_id=update.message.chat_id,
-                text=example_text,
-                parse_mode=telegram.ParseMode.MARKDOWN,
+            start_text = start_file.read()
+            update.message.reply_text(
+                text=start_text,
+                parse_mode=ParseMode.MARKDOWN,
             )
-            return 0
+        except Exception as error:
+            logger.error(error)
+    # update.message.reply_text("Hi! Use /set <seconds> to set a timer")
 
-    def text_message(self, chatbot, update):
-        # self.send_type_action(chatbot, update)
 
-        chatbot.send_message(
-            chat_id=update.message.chat_id,
-            text="ok",
-            parse_mode=telegram.ParseMode.MARKDOWN,
-        )
-        return 0
+def alarm(context: CallbackContext) -> None:
+    """Send the alarm message."""
+    job = context.job
+    context.bot.send_message(job.context, text="Beep!")
 
-    def error(self, chatbot, update, error):
-        self.logger.warning(f'Update "{update}" caused error "{error}"')
-        return 0
 
-    def run(self):
-        # Start the Bot
-        self.logger.info("Polling BOT.")
-        self.updater.start_polling()
+def send_meal_reminder(context: CallbackContext) -> None:
+    """Send a meal reminder at the set time"""
+    job = context.job
+    context.bot.send_message(job.context, text="[🐤🤖] THIS IS A REMINDER: PLEASE EAT!")
 
-        # Run the BOT until you press Ctrl-C or the process receives SIGINT,
-        # SIGTERM or SIGABRT. This should be used most of the time, since
-        # start_polling() is non-blocking and will stop the BOT gracefully.
-        self.updater.idle()
-        return 0
+
+def queue_reminders(job_queue) -> None:
+    job_queue.run_daily(
+        send_meal_reminder,
+        time=datetime.time(hour=4, minute=30),
+        days=(0, 1, 2, 3, 4),
+        context=CHAT_ID,
+        name=str(CHAT_ID),
+    )
+    job_queue.run_daily(
+        send_meal_reminder,
+        time=datetime.time(hour=11, minute=0),
+        days=(0, 1, 2, 3, 4),
+        context=CHAT_ID,
+        name=str(CHAT_ID),
+    )
+
+
+def set_timer(update: Update, context: CallbackContext) -> None:
+    """Add a job to the queue."""
+    chat_id = update.message.chat_id
+    try:
+        # args[0] should contain the time for the timer in seconds
+        due = int(context.args[0])
+        if due < 0:
+            update.message.reply_text("Sorry we can not go back to future!")
+            return
+
+        context.job_queue.run_once(alarm, due, context=chat_id, name=str(chat_id))
+
+        text = "Timer successfully set!"
+        update.message.reply_text(text)
+
+    except (IndexError, ValueError):
+        update.message.reply_text("Usage: /set <seconds>")
+
+
+def unset(update: Update, context: CallbackContext) -> None:
+    """Remove the job if the user changed their mind."""
+    chat_id = update.message.chat_id
+    job_removed = remove_job_if_exists(str(chat_id), context)
+    text = (
+        "Timer successfully cancelled!" if job_removed else "You have no active timer."
+    )
+    update.message.reply_text(text)
+
+
+def engage(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text(text="Mai kanchiong! Not ready yet!")
+
+
+def disengage(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text(text="Mai kanchiong! Not ready yet!")
+
+
+def quacks(update: Update, context: CallbackContext) -> None:
+    with open(QUACKS) as quacks:
+        try:
+            quacks = quacks.read()  # .split('\n')
+            text = """
+            Right now, these are the ways I can quack! \n---\n{}
+            """.format(
+                quacks
+            )
+            update.message.reply_text(
+                text=text,
+                parse_mode=ParseMode.MARKDOWN,
+            )
+        except Exception as error:
+            logger.error(error)
+
+
+def main() -> None:
+    """Run bot."""
+    # Create the Updater and pass it your bot's token.
+    updater = Updater(TOKEN)
+
+    # Get the dispatcher to register handlers
+    dispatcher = updater.dispatcher
+
+    # auto reminders on
+    j = updater.job_queue
+    queue_reminders(j)
+
+    # on different commands - answer in Telegram
+    dispatcher.add_handler(CommandHandler("start", start))
+    dispatcher.add_handler(CommandHandler("engage", engage))
+    dispatcher.add_handler(CommandHandler("disengage", disengage))
+    dispatcher.add_handler(CommandHandler("quacks", quacks))
+    dispatcher.add_handler(CommandHandler("set", set_timer))
+    dispatcher.add_handler(CommandHandler("unset", unset))
+
+    # Start the Bot
+    updater.start_polling()
+
+    # Block until you press Ctrl-C or the process receives SIGINT, SIGTERM or
+    # SIGABRT. This should be used most of the time, since start_polling() is
+    # non-blocking and will stop the bot gracefully.
+    updater.idle()
 
 
 if __name__ == "__main__":
-    if TOKEN is not None:
-        if PORT is not None:
-            BOT = DailyBot(TOKEN)
-            BOT.updater.start_webhook(
-                listen="0.0.0.0",
-                port=int(PORT),
-                url_path=TOKEN,
-                webhook_url=f"https://{NAME}.herokuapp.com/{TOKEN}",
-            )
-            # if LINK:
-            #     BOT.updater.bot.set_webhook(LINK)
-            # else:
-            #     BOT.updater.bot.set_webhook(f"https://{NAME}.herokuapp.com/{TOKEN}")
-            BOT.updater.idle()
-        else:
-            # Run on local system once detected that it's not on Heroku nor ngrok
-            BOT = DailyBot(TOKEN)
-            BOT.run()
-    else:
-        HOUR = int(os.environ.get("HOUR"))
-        MINUTE = int(os.environ.get("MINUTE"))
-        print(
-            f"Token {TOKEN}\n"
-            f"Port {PORT}\n"
-            f"Name {NAME}\n"
-            f"Hour {HOUR}\n"
-            f"Minute {MINUTE}\n"
-        )
+    main()
