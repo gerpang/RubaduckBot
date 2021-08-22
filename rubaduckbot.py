@@ -41,15 +41,15 @@ class DailyBot:
 
         self.dispatcher.add_error_handler(self.error)
 
-    @staticmethod
-    def send_type_action(chatbot, update):
-        """
-        Shows status typing when sending message
-        """
-        chatbot.send_chat_action(
-            chat_id=update.message.chat_id, action=telegram.ChatAction.TYPING
-        )
-        sleep(1)
+    # @staticmethod
+    # def send_type_action(chatbot, update):
+    #     """
+    #     Shows status typing when sending message
+    #     """
+    #     chatbot.send_chat_action(
+    #         chat_id=update.message.chat_id, action=telegram.ChatAction.TYPING
+    #     )
+    #     sleep(1)
 
     def send_start(self, chatbot, update):
         """
@@ -59,7 +59,7 @@ class DailyBot:
         """
         self.logger.info("Start command received.")
         self.logger.info(f"{update}")
-        self.send_type_action(chatbot, update)
+        # self.send_type_action(chatbot, update)
 
         chat_id = update.message["chat"]["id"]
         if update.message["chat"]["type"] == "private":
@@ -116,7 +116,7 @@ class DailyBot:
         @chatbot = information about the BOT
         @update = the user info.
         """
-        self.send_type_action(chatbot, update)
+        # self.send_type_action(chatbot, update)
         self.logger.info("Example command received.")
         with open(EXAMPLE_FILE) as example_file:
             example_text = example_file.read()
@@ -129,7 +129,7 @@ class DailyBot:
             return 0
 
     def text_message(self, chatbot, update):
-        self.send_type_action(chatbot, update)
+        # self.send_type_action(chatbot, update)
 
         chatbot.send_message(
             chat_id=update.message.chat_id,
