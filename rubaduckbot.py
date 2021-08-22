@@ -113,6 +113,17 @@ def quacks(update: Update, context: CallbackContext) -> None:
             logger.error(error)
 
 
+def quack(update: Update, context: CallbackContext) -> None:
+    with open(QUACKS) as quacks:
+        try:
+            import random
+
+            quacks = quacks.read().split("\n")
+            update.message.reply_text(text=random.choice(quacks))
+        except Exception as error:
+            logger.error(error)
+
+
 def main() -> None:
     """Run bot."""
     # Create the Updater and pass it your bot's token.
@@ -129,12 +140,19 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("engage", engage))
     dispatcher.add_handler(CommandHandler("disengage", disengage))
-    dispatcher.add_handler(CommandHandler("quacks", quacks))
+    dispatcher.add_handler(CommandHandler("all_quacks", quacks))
+    dispatcher.add_handler(CommandHandler("quack", quack))
     dispatcher.add_handler(CommandHandler("set", set_timer))
     dispatcher.add_handler(CommandHandler("unset", unset))
 
     # Start the Bot
     updater.start_polling()
+    updater.start_webhook(
+        listen="0.0.0.0",
+        port=int(PORT),
+        url_path=TOKEN,
+        webhook_url="https://{}.herokuapp.com/{}".format(NAME, TOKEN),
+    )
 
     # Block until you press Ctrl-C or the process receives SIGINT, SIGTERM or
     # SIGABRT. This should be used most of the time, since start_polling() is
