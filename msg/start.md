@@ -7,4 +7,5 @@ You can also use `/set x` and I will beep you after x seconds.
 Coming Soon: *Rubber Duck Mode!*
 - `/engage` to start rubber duck mode. 
 - `/disengage` to stop rubber duck mode. 
-- `/quacks` to hear my quacks!
+- `/all_quacks` to hear my quacks!
+- `/quack` to hear a random quack!
