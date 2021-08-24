@@ -8,7 +8,16 @@ dotenv_path = join(dirname(__file__), ".env")
 load_dotenv(dotenv_path)
 
 from telegram import Update, ParseMode
-from telegram.ext import Updater, CommandHandler, CallbackContext
+from telegram.ext import (
+    Updater,
+    CommandHandler,
+    CallbackContext,
+    ConversationHandler,
+    MessageHandler,
+    Filters,
+)
+
+LISTENING, REPLYING, SEARCHING = range(3)
 
 # Enable logging
 logging.basicConfig(
@@ -42,12 +51,16 @@ def send_meal_reminder(context: CallbackContext) -> None:
     job = context.job
     context.bot.send_message(job.context, text="[🐤🤖] THIS IS A REMINDER: PLEASE EAT!")
 
+
 def health_check(context: CallbackContext) -> None:
     try:
-        response = requests.get(f"https://api.telegram.org/bot${TOKEN}/getWebhookInfo",timeout=30)
+        response = requests.get(
+            f"https://api.telegram.org/bot${TOKEN}/getWebhookInfo", timeout=30
+        )
         logger.debug(response.status_code)
     except Exception as error:
         logger.error(error)
+
 
 def queue_reminders(job_queue) -> None:
     job_queue.run_repeating(
@@ -99,12 +112,46 @@ def unset(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(text)
 
 
+def listen(update: Update, context: CallbackContext) -> None:
+    context.user_data["count"] += 1
+    count = context.user_data["count"]
+    interval = context.user_data["interval"]
+    if count < interval:
+        return LISTENING
+    else:
+        context.user_data["count"] = 0
+        return quack(update, context)
+
+
+def search(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text(text="Give me a second, I'll look that up.")
+    try:
+        from googlesearch import search
+    except ImportError:
+        logger.debug("No module named 'google' found")
+    # to search
+    query = " ".join(context.args)
+    results = "This is what I found:\n\n"
+    for j in search(query, tld="co.in", num=3, stop=5, pause=2):
+        results += f"{j}\n"
+    update.message.reply_text(results)
+    logger.debug("Completed the search")
+    return LISTENING
+
+
 def engage(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text(text="Mai kanchiong! Not ready yet!")
+    update.message.reply_text(text="I'm listening. Talk to me.")
+    context.user_data["count"] = 0
+    try:
+        context.user_data["interval"] = int(context.args[0])
+    except:
+        context.user_data["interval"] = 5
+    return LISTENING
 
 
 def disengage(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text(text="Mai kanchiong! Not ready yet!")
+    update.message.reply_text(text="Roger that, bye.")
+    return ConversationHandler.END
 
 
 def quacks(update: Update, context: CallbackContext) -> None:
@@ -149,13 +196,23 @@ def main() -> None:
 
     # on different commands - answer in Telegram
     dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("engage", engage))
-    dispatcher.add_handler(CommandHandler("disengage", disengage))
     dispatcher.add_handler(CommandHandler("all_quacks", quacks))
     dispatcher.add_handler(CommandHandler("quack", quack))
     dispatcher.add_handler(CommandHandler("set", set_timer))
     dispatcher.add_handler(CommandHandler("unset", unset))
-
+    dispatcher.add_handler(
+        ConversationHandler(
+            entry_points=[CommandHandler("engage", engage)],
+            states={
+                LISTENING: [
+                    MessageHandler(Filters.text & ~Filters.command, listen),
+                    CommandHandler("search", search),
+                ],
+                REPLYING: [MessageHandler(Filters.text & ~Filters.command, quack)],
+            },
+            fallbacks=[CommandHandler("disengage", disengage)],
+        )
+    )
     # Start the Bot
     # updater.start_polling()
     updater.start_webhook(
