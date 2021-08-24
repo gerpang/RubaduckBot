@@ -2,6 +2,7 @@ import logging
 from settings import *
 from os.path import join, dirname
 from dotenv import load_dotenv
+import requests
 
 dotenv_path = join(dirname(__file__), ".env")
 load_dotenv(dotenv_path)
@@ -41,8 +42,18 @@ def send_meal_reminder(context: CallbackContext) -> None:
     job = context.job
     context.bot.send_message(job.context, text="[🐤🤖] THIS IS A REMINDER: PLEASE EAT!")
 
+def health_check(context: CallbackContext) -> None:
+    try:
+        response = requests.get(f"https://api.telegram.org/bot${TOKEN}/getWebhookInfo",timeout=30)
+        logger.debug(response.status_code)
+    except Exception as error:
+        logger.error(error)
 
 def queue_reminders(job_queue) -> None:
+    job_queue.run_repeating(
+        health_check,
+        interval=300,
+    )
     job_queue.run_daily(
         send_meal_reminder,
         time=datetime.time(hour=4, minute=30),
