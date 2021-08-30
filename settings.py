@@ -9,9 +9,8 @@ load_dotenv(dotenv_path)
 # Required*
 TOKEN = os.environ.get("TOKEN", "")
 NAME = os.environ.get("NAME", "")
-HOUR = int(os.environ.get("HOUR", 10))
-MINUTE = int(os.environ.get("MINUTE", 00))
-DAILY_TIME = datetime.time(hour=HOUR, minute=MINUTE)
+URL = os.environ.get("URL", "")
+
 
 # File locations
 START_FILE = "msg/start.md"

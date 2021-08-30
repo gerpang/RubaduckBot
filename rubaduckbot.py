@@ -105,10 +105,7 @@ def set_timer(update: Update, context: CallbackContext) -> None:
 def unset(update: Update, context: CallbackContext) -> None:
     """Remove the job if the user changed their mind."""
     chat_id = update.message.chat_id
-    job_removed = remove_job_if_exists(str(chat_id), context)
-    text = (
-        "Timer successfully cancelled!" if job_removed else "You have no active timer."
-    )
+    text = "Timer successfully cancelled!"
     update.message.reply_text(text)
 
 
@@ -146,6 +143,7 @@ def engage(update: Update, context: CallbackContext) -> None:
         context.user_data["interval"] = int(context.args[0])
     except:
         context.user_data["interval"] = 5
+    print(f'Listening; Will reply every {context.user_data["interval"]} messages')
     return LISTENING
 
 
@@ -219,7 +217,7 @@ def main() -> None:
         listen="0.0.0.0",
         port=int(PORT),
         url_path=TOKEN,
-        webhook_url="https://{}.herokuapp.com/{}".format(NAME, TOKEN),
+        webhook_url=URL,
     )
 
     updater.idle()
